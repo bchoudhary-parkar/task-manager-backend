@@ -7,21 +7,19 @@ export const getPermissions = (req, res) => {
 // POST /roles
 export const createRole = async (req, res) => {
     try {
-        const { name, permissions } = req.body;
+        let { name, permissions } = req.body;
         if (!name || !permissions || !Array.isArray(permissions)) {
             return res.status(400).json({ message: 'Name and permissions are required' });
         }
+        // Normalize name
+        name = name.trim().toLowerCase();
         // Validate permission codes
         if (!validatePermissions(permissions)) {
             return res.status(400).json({ message: 'Invalid permission codes' });
         }
-        // Check if role already exists
+        // Check if role already exists (case-insensitive)
         const existingRole = await Role.findOne({ name });
-        if (existingRole)
-            return res.status(400).json({
-                message: "yuck"
-            });
-        if (req.body.name.toLowerCase() == existingRole?.name.toLowerCase()) {
+        if (existingRole) {
             return res.status(409).json({ message: 'Role already exists' });
         }
         const newRole = await Role.create({ name, permissions });

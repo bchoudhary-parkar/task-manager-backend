@@ -10,7 +10,9 @@ const RoleSchema = new Schema<roleDocument>(
     name: { 
         type: String, 
         required: true,
-        unique:true
+        unique:true,
+        lowercase: true,
+        trim: true
     }, 
     permissions: { 
         type: [Number], 
