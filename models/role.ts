@@ -2,6 +2,7 @@ import mongoose,{ Schema, Document } from 'mongoose';
 
 export interface roleDocument extends Document {
   name: string;
+  description: string;
   permissions: number[];
 }
 
@@ -12,6 +13,11 @@ const RoleSchema = new Schema<roleDocument>(
         required: true,
         trim: true
     }, 
+    description:{
+      type: String,
+      default:'',
+      trim:true
+    },
     permissions: { 
         type: [Number], 
         required: true 

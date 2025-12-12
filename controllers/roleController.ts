@@ -10,7 +10,7 @@ export const getPermissions = (req: Request, res: Response) => {
 // POST /roles - FIXED VERSION
 export const createRole = async (req: Request, res: Response) => {
   try {
-    let { name, permissions } = req.body;
+    let { name, description, permissions } = req.body;
     
     if (!name || !permissions || !Array.isArray(permissions)) {
       return res.status(400).json({ message: 'Name and permissions are required' });
@@ -18,6 +18,7 @@ export const createRole = async (req: Request, res: Response) => {
 
     // CHANGE: Only trim, don't convert case - preserve original case
     name = name.trim();
+    description = description.trim();
     
     // Validate permission codes
     if (!validatePermissions(permissions)) {
@@ -34,7 +35,7 @@ export const createRole = async (req: Request, res: Response) => {
     }
 
     // Save with original case preserved
-    const newRole = await Role.create({ name, permissions });
+    const newRole = await Role.create({ name, description, permissions });
     return res.status(201).json(newRole);
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error });
@@ -44,8 +45,55 @@ export const createRole = async (req: Request, res: Response) => {
 // GET /roles
 export const getRoles = async (req: Request, res: Response) => {
   try {
-    const roles = await Role.find();
-    return res.json(roles);
+    const { 
+      search = '', 
+      page = '1', 
+      limit = '10',
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build search query
+    const query: any = {};
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Build sort object
+    const sort: any = {};
+    sort[sortBy as string] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query with pagination
+    const [roles, total] = await Promise.all([
+      Role.find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Role.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    return res.json({
+      success: true,
+      data: roles,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: total,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      }
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error });
   }
@@ -69,10 +117,10 @@ export const getRoleById = async (req: Request, res: Response) => {
 export const updateRole = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    let { name, permissions } = req.body;
+    let { name, description, permissions } = req.body;
     
     // Validate input
-    if (!name && !permissions) {
+    if (!name && !description && !permissions) {
       return res.status(400).json({ message: 'At least one field (name or permissions) is required' });
     }
     
@@ -105,7 +153,9 @@ export const updateRole = async (req: Request, res: Response) => {
       // Save with original case preserved
       role.name = name;
     }
-    
+    if (description !== undefined) {
+      role.description = description.trim();
+    }
     // Update permissions if provided
     if (permissions) {
       role.permissions = permissions;
