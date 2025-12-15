@@ -2,6 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
 import roleRoutes from "./routes/roleRoute.js";
+import userRoutes from "./routes/userRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 import cors from 'cors';
 dotenv.config();
 connectDB();
@@ -20,7 +22,9 @@ app.use((req, _res, next) => {
     req.user = { permissions: [1, 2, 3, 4], roleId: 'admin', email: 'admin@test.com' };
     next();
 });
-app.use("/api", roleRoutes);
+app.use("/api/role", roleRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/auth", authRoutes);
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
