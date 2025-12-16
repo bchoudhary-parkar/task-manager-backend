@@ -1,16 +1,18 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import dotenv from "dotenv";
+dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_here";
 const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith('Bearer')) {
         res.status(401).json({ success: false, message: 'Not authorized, token missing' });
         return;
     }
     const token = authHeader.split(' ')[1];
     try {
         const payload = jwt.verify(token, JWT_SECRET);
-        const user = await User.findById(payload.id).select('-password');
+        const user = await User.findById(payload.id).select('-password').populate('role', 'name permissions');
         if (!user) {
             res.status(401).json({ success: false, message: 'User not found' });
             return;

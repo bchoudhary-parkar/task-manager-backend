@@ -22,11 +22,6 @@ app.get("/", (_req: Request, res: Response) => {
   res.send("Server is running");
 });
 
-// app.use((req: any, _res, next) => {
-//   // Mock user with all permissions for testing
-//   req.user = { permissions: [1, 2, 3, 4], roleId: 'admin', email: 'admin@test.com' };
-//   next();
-// });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/role", authMiddleware, roleRoutes);
