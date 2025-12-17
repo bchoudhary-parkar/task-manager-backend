@@ -21,3 +21,12 @@ export const authorizeUserManagement = (req: Request, res: Response, next: NextF
   
   next();
 };
+export const authorizeTaskManagement = (req: Request, res: Response, next: NextFunction) => {
+  const taskPermissions = req.user?.permissions || [];
+ 
+  if (!taskPermissions.includes(permissionsMap.task_management)) {
+    return res.status(403).json({ message: 'Forbidden: Insufficient permissions for task management' });
+  }
+ 
+  next();
+};

@@ -1,22 +1,23 @@
-import { Router, Request, Response } from 'express';
-import { authorizeRoleManagement } from '../middleware/auth_middleware.js';
+import { Router } from 'express';
 import { 
-  getPermissions, 
-  createRole, 
   getRoles, 
+  createRole, 
+  updateRole, 
+  deleteRole, 
   getRoleById,
-  updateRole,
-  deleteRole
+  getAllRoles
 } from '../controllers/roleController.js';
+import { authorizeRoleManagement } from '../middleware/auth_middleware.js';
 
 const router = Router();
 
-router.get('/permissions', authorizeRoleManagement, getPermissions);
-router.post('/roles', authorizeRoleManagement, createRole);
-router.get('/roles', authorizeRoleManagement, getRoles);
-router.get('/roles/:id', authorizeRoleManagement, getRoleById);
-router.put('/roles/:id', authorizeRoleManagement, updateRole);
-router.delete('/roles/:id', authorizeRoleManagement, deleteRole);
+// Specific routes first (no auth needed)
+router.get('/all', getAllRoles);
 
+router.get('/', authorizeRoleManagement, getRoles); // Move this BEFORE /:id
+router.post('/', authorizeRoleManagement, createRole);
+router.put('/:id', authorizeRoleManagement, updateRole);
+router.delete('/:id', authorizeRoleManagement, deleteRole);
+router.get('/:id', authorizeRoleManagement, getRoleById); // Move this to LAST
 
 export default router;

@@ -5,6 +5,7 @@ import roleRoutes from "./routes/roleRoute.js";
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import authMiddleware from "./middleware/auth.js";
+import taskRoutes from "./routes/taskRoutes.js";
 import cors from 'cors';
 dotenv.config();
 connectDB();
@@ -21,6 +22,7 @@ app.get("/", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/role", authMiddleware, roleRoutes);
 app.use("/api/user", authMiddleware, userRoutes);
+app.use("/api/tasks", authMiddleware, taskRoutes);
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
