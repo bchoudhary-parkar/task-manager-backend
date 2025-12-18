@@ -98,7 +98,7 @@ export const createTask = async (req, res) => {
             priority: priority || 'medium',
             assignedTo: assignedTo || null,
             dueDate: dueDate || null,
-            createdBy: req.user?.id, // Track who created the task
+            createdBy: req.user?.id,
         });
         // Populate assignedTo before returning
         const populatedTask = await Task.findById(task._id)
