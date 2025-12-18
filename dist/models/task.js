@@ -40,7 +40,7 @@ const TaskSchema = new Schema({
     assignedTo: {
         type: Schema.Types.ObjectId, // FIXED: Changed from String to ObjectId
         ref: 'user', // Reference to User model
-        required: [true, 'Assigned user is required'],
+        // required: [true, 'Assigned user is required'],
     },
     createdBy: {
         type: String,

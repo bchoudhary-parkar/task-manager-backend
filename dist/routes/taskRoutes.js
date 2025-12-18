@@ -1,5 +1,5 @@
 import express from 'express';
-import { getTasks, getTaskById, createTask, updateTask, deleteTask, bulkUpdateStatus, getUsersForTaskAssignment } from '../controllers/taskContoller.js';
+import { getTasks, getTaskById, createTask, updateTask, deleteTask, bulkUpdateStatus, getUsersForTaskAssignment } from '../controllers/taskController.js';
 import { authorizeTaskManagement } from '../middleware/auth_middleware.js';
 const taskRouter = express.Router();
 // Task routes

@@ -7,7 +7,7 @@ import {
   deleteTask,
   bulkUpdateStatus,
   getUsersForTaskAssignment
-} from '../controllers/taskContoller.js';
+} from '../controllers/taskController.js';
 import { authorizeTaskManagement } from '../middleware/auth_middleware.js';
  
 const taskRouter = express.Router();
