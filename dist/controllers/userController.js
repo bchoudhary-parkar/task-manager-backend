@@ -1,7 +1,8 @@
 import User from '../models/User.js';
 import { Role } from '../models/role.js';
 import bcrypt from 'bcrypt';
-// GET /api/users - Get all users with pagination and search
+import crypto from 'crypto';
+import { sendAdminCreatedUserEmail } from '../utils/email.service.js';
 export const getUsers = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -9,20 +10,32 @@ export const getUsers = async (req, res) => {
         const skip = (page - 1) * limit;
         const searchTerm = req.query.search;
         const statusFilter = req.query.status;
-        // Build query
+        // 1. Get the current user's ID from the request object
+        // This assumes your auth middleware attaches the user to req.user
+        const currentUserId = req.user?._id || req.user?.id;
+        // 2. Build the query object
         const query = {};
-        if (searchTerm) {
-            query.$or = [
-                { name: { $regex: searchTerm, $options: 'i' } },
-                { email: { $regex: searchTerm, $options: 'i' } }
-            ];
+        // FILTER: Exclude the logged-in user from the results
+        if (currentUserId) {
+            query._id = { $ne: currentUserId };
         }
+        // Add status filter if provided
         if (statusFilter) {
             query.status = statusFilter;
         }
-        // Get total count
+        // Add search logic
+        if (searchTerm) {
+            // Use $and to ensure we keep the exclusion of the current user
+            query.$and = query.$and || [];
+            query.$and.push({
+                $or: [
+                    { name: { $regex: searchTerm, $options: 'i' } },
+                    { email: { $regex: searchTerm, $options: 'i' } }
+                ]
+            });
+        }
+        // 3. Execute the query
         const totalUsers = await User.countDocuments(query);
-        // Execute query with pagination and populate role
         const users = await User.find(query)
             .select('-password -verificationToken -googleId') // Exclude sensitive fields
             .populate('role', 'name permissions')
@@ -43,7 +56,7 @@ export const getUsers = async (req, res) => {
         });
     }
     catch (err) {
-        console.log("error occurred while fetching users:", err);
+        console.error("Error occurred while fetching users:", err);
         res.status(500).json({
             success: false,
             message: 'Failed to fetch users',
@@ -51,95 +64,69 @@ export const getUsers = async (req, res) => {
         });
     }
 };
-// POST /api/users - Create new user
 export const createUser = async (req, res) => {
-    const { name, email, status, picture, role: roleId, password } = req.body;
+    const { name, email, status, picture, role: roleId } = req.body;
     try {
-        // 1. Validate required fields
+        // 2. Validation
         if (!name || !email) {
-            return res.status(400).json({
-                success: false,
-                message: 'Name and email are required'
-            });
+            return res.status(400).json({ success: false, message: 'Name and email are required' });
         }
-        // 2. Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid email format'
-            });
+            return res.status(400).json({ success: false, message: 'Invalid email format' });
         }
-        // 3. Check if email already exists
-        const emailExists = await User.findOne({
-            email: email.toLowerCase().trim()
-        });
+        const emailExists = await User.findOne({ email: email.toLowerCase().trim() });
         if (emailExists) {
-            return res.status(409).json({
-                success: false,
-                message: 'Email already in use'
-            });
+            return res.status(409).json({ success: false, message: 'Email already in use' });
         }
-        // 4. Password validation (for non-Google auth)
-        if (!password) {
-            return res.status(400).json({
-                success: false,
-                message: 'Password is required'
-            });
-        }
-        if (password.length < 6) {
-            return res.status(400).json({
-                success: false,
-                message: 'Password must be at least 6 characters long'
-            });
-        }
-        // 5. Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        // 6. Validate role if provided
+        const tempPassword = crypto.randomBytes(4).toString('hex');
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
         let permissions = [];
         if (roleId) {
             const existingRole = await Role.findById(roleId);
             if (!existingRole) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Role not found'
-                });
+                return res.status(400).json({ success: false, message: 'Role not found' });
             }
             permissions = existingRole.permissions;
         }
-        // 7. Create new user
+        // 5. Create new user
         const newUser = await User.create({
             name: name.trim(),
             email: email.toLowerCase().trim(),
             password: hashedPassword,
             status: status || 'available',
-            picture: picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`,
+            picture: picture || `ui-avatars.com{encodeURIComponent(name)}`,
             role: roleId || null,
             permissions,
             isGoogleAuth: false,
-            emailVerified: false
+            emailVerified: false,
+            isAdminCreated: true,
+            mustChangePassword: true
         });
-        // 8. Populate role and return (exclude password)
+        const emailSent = await sendAdminCreatedUserEmail(email.toLowerCase().trim(), name, tempPassword);
+        // if (emailSent) {
+        //   console.log(`Temp password for ${email} sent to email.`);
+        // } else {
+        //   console.error(`User created but failed to send email to ${email}. Password was: ${tempPassword}`);
+        // }
+        // 7. Return populated user data
         const populatedUser = await User.findById(newUser._id)
-            .select('-password -verificationToken')
+            .select('-password -verificationToken -googleId')
             .populate('role', 'name permissions')
             .lean();
         res.status(201).json({
             success: true,
             data: populatedUser,
-            message: 'User created successfully'
+            message: emailSent
+                ? 'User created successfully and password emailed.'
+                : 'User created successfully, but email failed to send.'
         });
     }
     catch (err) {
-        console.log("error occurred while creating user:", err);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to create user',
-            error: err.message
-        });
+        console.error("Error occurred while creating user:", err);
+        res.status(500).json({ success: false, message: 'Failed to create user', error: err.message });
     }
 };
-// GET /api/users/:id - Get single user by ID
 export const getUserById = async (req, res) => {
     try {
         const user = await User.findById(req.params.id)
@@ -166,7 +153,6 @@ export const getUserById = async (req, res) => {
         });
     }
 };
-// PUT /api/users/:id - Update user
 export const updateUser = async (req, res) => {
     const { name, email, status, picture, role: roleId } = req.body;
     try {
@@ -266,7 +252,6 @@ export const updateUser = async (req, res) => {
         });
     }
 };
-// DELETE /api/users/:id - Delete user
 export const deleteUser = async (req, res) => {
     try {
         const user = await User.findByIdAndDelete(req.params.id)

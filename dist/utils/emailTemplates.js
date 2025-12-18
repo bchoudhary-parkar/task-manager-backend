@@ -52,4 +52,17 @@ export const Welcome_Email_Template = `
 </body>
 </html>
 `;
+// task-manager-backend/utils/emailTemplates.js
+export const Temp_Password_Email_Template = `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #eee;">
+    <h2 style="color: #2b6cb0;">Account Created</h2>
+    <p>Hello {name},</p>
+    <p>An administrator has created an account for you. Your login credentials are:</p>
+    <div style="background: #f7fafc; padding: 15px; border-radius: 5px;">
+      <p><strong>Email:</strong> {email}</p>
+      <p><strong>Temporary Password:</strong> <span style="color: #e53e3e; font-family: monospace;">{tempPassword}</span></p>
+    </div>
+    <p style="margin-top: 20px;">Please login and change your password immediately.</p>
+  </div>
+`;
 //# sourceMappingURL=emailTemplates.js.map

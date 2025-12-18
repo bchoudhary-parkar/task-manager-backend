@@ -78,29 +78,29 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
 
         // Check if user exists
         const existingUser = await User.findOne({ email: email.toLowerCase() });
-        
+
         if (existingUser) {
             if (existingUser.isGoogleAuth) {
-                res.status(409).json({ 
-                    success: false, 
-                    message: "An account with this email already exists using Google Sign-In. Please use 'Continue with Google' to login." 
+                res.status(409).json({
+                    success: false,
+                    message: "An account with this email already exists using Google Sign-In. Please use 'Continue with Google' to login."
                 });
                 return;
             }
-            
+
             if (!existingUser.emailVerified) {
-                res.status(409).json({ 
-                    success: false, 
+                res.status(409).json({
+                    success: false,
                     message: "Email already registered but not verified. Please verify your email.",
                     requiresVerification: true,
                     email: existingUser.email
                 });
                 return;
             }
-            
-            res.status(409).json({ 
-                success: false, 
-                message: "An account with this email already exists. Please login instead." 
+
+            res.status(409).json({
+                success: false,
+                message: "An account with this email already exists. Please login instead."
             });
             return;
         }
@@ -113,9 +113,9 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
         const verificationTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
         // Create user
-        const user = await User.create({ 
-            name, 
-            email: email.toLowerCase(), 
+        const user = await User.create({
+            name,
+            email: email.toLowerCase(),
             password: hashed,
             isGoogleAuth: false,
             emailVerified: false,
@@ -142,8 +142,8 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
 
     } catch (err: any) {
         console.error("Registration error:", err);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: "Server error during registration.",
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
         });
@@ -167,18 +167,18 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
         });
 
         if (!user) {
-            res.status(400).json({ 
-                success: false, 
-                message: "Invalid or expired verification code." 
+            res.status(400).json({
+                success: false,
+                message: "Invalid or expired verification code."
             });
             return;
         }
 
         // Check OTP attempts
         if (user.otpAttempts >= 5) {
-            res.status(429).json({ 
-                success: false, 
-                message: "Too many failed attempts. Please request a new code." 
+            res.status(429).json({
+                success: false,
+                message: "Too many failed attempts. Please request a new code."
             });
             return;
         }
@@ -188,11 +188,11 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
             // Increment failed attempts
             user.otpAttempts += 1;
             await user.save();
-            
+
             const attemptsLeft = 5 - user.otpAttempts;
-            res.status(400).json({ 
-                success: false, 
-                message: `Invalid verification code. ${attemptsLeft} attempt${attemptsLeft !== 1 ? 's' : ''} remaining.` 
+            res.status(400).json({
+                success: false,
+                message: `Invalid verification code. ${attemptsLeft} attempt${attemptsLeft !== 1 ? 's' : ''} remaining.`
             });
             return;
         }
@@ -205,7 +205,7 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
         await user.save();
 
         // Send welcome email (non-blocking)
-        sendWelcomeEmail(user.email, user.name).catch(err => 
+        sendWelcomeEmail(user.email, user.name).catch(err =>
             console.error("Failed to send welcome email:", err)
         );
 
@@ -227,8 +227,8 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
 
     } catch (err: any) {
         console.error("Email verification error:", err);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: "Server error during verification.",
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
         });
@@ -281,8 +281,8 @@ export const resendOTP = async (req: Request, res: Response): Promise<void> => {
 
     } catch (err: any) {
         console.error("Resend OTP error:", err);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: "Server error.",
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
         });
@@ -300,16 +300,23 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         }
 
         const user = await User.findOne({ email: email.toLowerCase() });
-        
+        if (user?.status === "not available") {
+            res.status(403).json({
+                success: false,
+                message: "Access Denied: Your account is currently suspended or inactive."
+            });
+            return;
+        }
+
         if (!user) {
             res.status(401).json({ success: false, message: "Invalid email or password." });
             return;
         }
 
         if (user.isGoogleAuth) {
-            res.status(401).json({ 
-                success: false, 
-                message: "Please use 'Continue with Google' to login." 
+            res.status(401).json({
+                success: false,
+                message: "Please use 'Continue with Google' to login."
             });
             return;
         }
@@ -327,8 +334,8 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
 
         // Check email verification
         if (!user.emailVerified) {
-            res.status(403).json({ 
-                success: false, 
+            res.status(403).json({
+                success: false,
                 message: "Please verify your email first.",
                 requiresVerification: true,
                 email: user.email
@@ -352,8 +359,8 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
 
     } catch (err: any) {
         console.error("Login error:", err);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: "Server error during login.",
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
         });
@@ -460,35 +467,36 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
 export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
-        
+
         if (!userId) {
             res.status(401).json({ success: false, message: "Not authorized" });
             return;
         }
 
-        const user = await User.findById(userId).select("name email picture isGoogleAuth emailVerified");
-        
+        const user = await User.findById(userId).select("name email picture isGoogleAuth emailVerified permissions");
+
         if (!user) {
             res.status(404).json({ success: false, message: "User not found." });
             return;
         }
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             user: {
                 id: user._id.toString(),
                 name: user.name,
                 email: user.email,
                 picture: user.picture || '',
                 isGoogleAuth: user.isGoogleAuth,
-                emailVerified: user.emailVerified
+                emailVerified: user.emailVerified,
+                Permissions:user.permissions
             }
         });
 
     } catch (err: any) {
         console.error("Get current user error:", err);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: "Server error.",
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
         });

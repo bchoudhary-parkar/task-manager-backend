@@ -232,6 +232,13 @@ export const loginUser = async (req, res) => {
             return;
         }
         const user = await User.findOne({ email: email.toLowerCase() });
+        if (user?.status === "not available") {
+            res.status(403).json({
+                success: false,
+                message: "Access Denied: Your account is currently suspended or inactive."
+            });
+            return;
+        }
         if (!user) {
             res.status(401).json({ success: false, message: "Invalid email or password." });
             return;
@@ -377,7 +384,7 @@ export const getCurrentUser = async (req, res) => {
             res.status(401).json({ success: false, message: "Not authorized" });
             return;
         }
-        const user = await User.findById(userId).select("name email picture isGoogleAuth emailVerified");
+        const user = await User.findById(userId).select("name email picture isGoogleAuth emailVerified permissions");
         if (!user) {
             res.status(404).json({ success: false, message: "User not found." });
             return;
@@ -390,7 +397,8 @@ export const getCurrentUser = async (req, res) => {
                 email: user.email,
                 picture: user.picture || '',
                 isGoogleAuth: user.isGoogleAuth,
-                emailVerified: user.emailVerified
+                emailVerified: user.emailVerified,
+                Permissions: user.permissions
             }
         });
     }
