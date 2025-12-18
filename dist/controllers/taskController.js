@@ -25,6 +25,7 @@ export const getTasks = async (req, res) => {
         }
         const tasks = await Task.find(query)
             .populate('assignedTo', 'name email picture status')
+            .populate('createdBy', 'name email picture status')
             .sort({ createdAt: -1 });
         res.status(200).json({
             success: true,
@@ -90,7 +91,7 @@ export const createTask = async (req, res) => {
             status: req.body.status || 'TODO',
             priority: req.body.priority || 'MEDIUM',
             assignedTo: req.body.assignedTo || null, // CHANGED: Explicitly set to null if not provided
-            createdBy: req.body.createdBy || 'Unknown',
+            createdBy: req.user?.id || 'Unknown',
             dueDate: req.body.dueDate,
             tags: req.body.tags || [],
             subtasks: req.body.subtasks || [],

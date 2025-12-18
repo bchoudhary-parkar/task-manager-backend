@@ -43,9 +43,9 @@ const TaskSchema = new Schema({
         // required: [true, 'Assigned user is required'],
     },
     createdBy: {
-        type: String,
-        required: [true, 'Creator is required'],
-        trim: true,
+        type: Schema.Types.ObjectId,
+        ref: 'user',
+        required: true
     },
     dueDate: {
         type: Date,
