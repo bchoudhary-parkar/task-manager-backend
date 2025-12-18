@@ -27,7 +27,7 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
    
     // Filter by assigned user
     if (assignedTo) {
-      query.assignedTo = assignedTo;
+      query.assignedTo = { $regex: assignedTo, $options: 'i' };
     }
    
     // Filter by status
@@ -90,51 +90,45 @@ export const getTaskById = async (req: Request, res: Response): Promise<void> =>
 // Create new task
 export const createTask = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, description, status, priority, assignedTo, dueDate } = req.body;
- 
     // Validate required fields
-    if (!title) {
-      res.status(400).json({
-        success: false,
-        message: 'Title is required',
-      });
+    if (!req.body.title) {
+      res.status(400).json({ success: false, message: 'Title is required' });
       return;
     }
- 
-    // Validate assignedTo user exists if provided
-    if (assignedTo) {
-      const userExists = await User.findById(assignedTo);
+
+    // CHANGED: Make assignedTo validation optional - only validate if provided
+    if (req.body.assignedTo) {
+      const userExists = await User.findById(req.body.assignedTo);
       if (!userExists) {
-        res.status(400).json({
-          success: false,
-          message: 'Assigned user not found',
-        });
+        res.status(400).json({ success: false, message: 'Assigned user not found' });
         return;
       }
     }
- 
-    // Create task with createdBy field
+
+    // CHANGED: Create task with optional assignedTo (can be null/undefined)
     const task = await Task.create({
-      title,
-      description,
-      status: status || 'todo',
-      priority: priority || 'medium',
-      assignedTo: assignedTo || null,
-      dueDate: dueDate || null,
-      createdBy: req.user?.id, 
+      title: req.body.title,
+      description: req.body.description,
+      status: req.body.status || 'TODO',
+      priority: req.body.priority || 'MEDIUM',
+      assignedTo: req.body.assignedTo || null, // CHANGED: Explicitly set to null if not provided
+      createdBy: req.body.createdBy || 'Unknown',
+      dueDate: req.body.dueDate,
+      tags: req.body.tags || [],
+      subtasks: req.body.subtasks || [],
     });
-   
-    // Populate assignedTo before returning
+
+    // Populate and return
     const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'name email picture status');
- 
+      .populate('assignedTo', 'name email picture status')
+      .lean();
+
     res.status(201).json({
       success: true,
       message: 'Task created successfully',
       data: populatedTask,
     });
   } catch (error: any) {
-    console.error('Error creating task:', error);
     res.status(400).json({
       success: false,
       message: 'Error creating task',
@@ -146,8 +140,8 @@ export const createTask = async (req: Request, res: Response): Promise<void> => 
 // Update task
 export const updateTask = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Validate assignedTo user exists if provided
-    if (req.body.assignedTo) {
+    // CHANGED: Only validate assignedTo if it's being updated and is not null/empty
+    if (req.body.assignedTo && req.body.assignedTo !== null) {
       const userExists = await User.findById(req.body.assignedTo);
       if (!userExists) {
         res.status(400).json({
@@ -311,4 +305,3 @@ export const getUsersForTaskAssignment = async (req: Request, res: Response): Pr
     });
   }
 };
- 

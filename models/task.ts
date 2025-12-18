@@ -11,7 +11,7 @@ export interface ITask extends Document {
   description: string;
   status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
-  assignedTo: Types.ObjectId; 
+  assignedTo?: Types.ObjectId |  string; 
   createdBy: string;
   dueDate?: Date;
   tags: string[];
@@ -63,7 +63,8 @@ const TaskSchema: Schema = new Schema(
     assignedTo: {
       type: Schema.Types.ObjectId,  // FIXED: Changed from String to ObjectId
       ref: 'user',  // Reference to User model
-      required: [true, 'Assigned user is required'],
+      // required: [true, 'Assigned user is required'],
+  
     },
     createdBy: {
       type: String,
