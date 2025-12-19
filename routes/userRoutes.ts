@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getUsers, createUser, updateUser, deleteUser, getUserById } from '../controllers/userController.js';
+import { getUsers, createUser, updateUser, deleteUser, getUserById} from '../controllers/userController.js';
 import { authorizeUserManagement } from '../middleware/auth_middleware.js';
 
 const router = Router();
@@ -10,5 +10,4 @@ router.put('/:id', authorizeUserManagement, updateUser);
 router.delete('/:id', authorizeUserManagement, deleteUser);
 router.get('/', authorizeUserManagement, getUsers);
 router.get('/:id', authorizeUserManagement, getUserById);
-
 export default router;

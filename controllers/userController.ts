@@ -312,20 +312,17 @@ export const deleteUser = async (req: Request, res: Response) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id)
       .select('-password -verificationToken');
-    
     if (!user) {
       return res.status(404).json({ 
         success: false,
         message: 'User not found' 
       });
     }
-    
     res.json({ 
       success: true,
       data: user,
       message: 'User deleted successfully' 
     });
-    
   } catch (err: any) {
     console.log("error occurred while deleting user:", err);
     res.status(500).json({ 
