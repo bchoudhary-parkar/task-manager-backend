@@ -4,22 +4,18 @@ export const getTasks = async (req, res) => {
     try {
         const { search, assignedTo, status, priority } = req.query;
         let query = {};
-        // Search by title or description
         if (search) {
             query.$or = [
                 { title: { $regex: search, $options: 'i' } },
                 { description: { $regex: search, $options: 'i' } },
             ];
         }
-        // Filter by assigned user
         if (assignedTo) {
             query.assignedTo = { $regex: assignedTo, $options: 'i' };
         }
-        // Filter by status
         if (status) {
             query.status = status;
         }
-        // Filter by priority
         if (priority) {
             query.priority = priority;
         }
@@ -42,7 +38,6 @@ export const getTasks = async (req, res) => {
         });
     }
 };
-// Get single task by ID
 export const getTaskById = async (req, res) => {
     try {
         const task = await Task.findById(req.params.id)
@@ -71,12 +66,10 @@ export const getTaskById = async (req, res) => {
 // Create new task
 export const createTask = async (req, res) => {
     try {
-        // Validate required fields
         if (!req.body.title) {
             res.status(400).json({ success: false, message: 'Title is required' });
             return;
         }
-        // CHANGED: Make assignedTo validation optional - only validate if provided
         if (req.body.assignedTo) {
             const userExists = await User.findById(req.body.assignedTo);
             if (!userExists) {
@@ -84,19 +77,17 @@ export const createTask = async (req, res) => {
                 return;
             }
         }
-        // CHANGED: Create task with optional assignedTo (can be null/undefined)
         const task = await Task.create({
             title: req.body.title,
             description: req.body.description,
             status: req.body.status || 'TODO',
             priority: req.body.priority || 'MEDIUM',
-            assignedTo: req.body.assignedTo || null, // CHANGED: Explicitly set to null if not provided
+            assignedTo: req.body.assignedTo || null,
             createdBy: req.user?.id || 'Unknown',
             dueDate: req.body.dueDate,
             tags: req.body.tags || [],
             subtasks: req.body.subtasks || [],
         });
-        // Populate and return
         const populatedTask = await Task.findById(task._id)
             .populate('assignedTo', 'name email picture status')
             .lean();
@@ -117,7 +108,6 @@ export const createTask = async (req, res) => {
 // Update task
 export const updateTask = async (req, res) => {
     try {
-        // CHANGED: Only validate assignedTo if it's being updated and is not null/empty
         if (req.body.assignedTo && req.body.assignedTo !== null) {
             const userExists = await User.findById(req.body.assignedTo);
             if (!userExists) {
@@ -183,7 +173,7 @@ export const deleteTask = async (req, res) => {
 // Bulk update task status (for drag and drop)
 export const bulkUpdateStatus = async (req, res) => {
     try {
-        const { updates } = req.body; // Array of { id, status }
+        const { updates } = req.body;
         if (!Array.isArray(updates) || updates.length === 0) {
             res.status(400).json({
                 success: false,
@@ -208,7 +198,7 @@ export const bulkUpdateStatus = async (req, res) => {
         });
     }
 };
-// Get users for task assignment (paginated, only available users)
+// Get users for task assignment 
 export const getUsersForTaskAssignment = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;

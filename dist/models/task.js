@@ -38,8 +38,8 @@ const TaskSchema = new Schema({
         required: [true, 'priority is required'],
     },
     assignedTo: {
-        type: Schema.Types.ObjectId, // FIXED: Changed from String to ObjectId
-        ref: 'user', // Reference to User model
+        type: Schema.Types.ObjectId,
+        ref: 'user',
         // required: [true, 'Assigned user is required'],
     },
     createdBy: {
