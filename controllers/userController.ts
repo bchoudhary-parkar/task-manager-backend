@@ -22,26 +22,20 @@ export const getUsers = async (req: PaginatedRequest, res: Response) => {
     const searchTerm = req.query.search;
     const statusFilter = req.query.status;
 
-    // 1. Get the current user's ID from the request object
-    // This assumes your auth middleware attaches the user to req.user
+
     const currentUserId = (req as any).user?._id || (req as any).user?.id;
 
-    // 2. Build the query object
     const query: any = {};
     
-    // FILTER: Exclude the logged-in user from the results
     if (currentUserId) {
       query._id = { $ne: currentUserId };
     }
 
-    // Add status filter if provided
     if (statusFilter) {
       query.status = statusFilter;
     }
 
-    // Add search logic
     if (searchTerm) {
-      // Use $and to ensure we keep the exclusion of the current user
       query.$and = query.$and || [];
       query.$and.push({
         $or: [
@@ -51,11 +45,10 @@ export const getUsers = async (req: PaginatedRequest, res: Response) => {
       });
     }
 
-    // 3. Execute the query
     const totalUsers = await User.countDocuments(query);
 
     const users = await User.find(query)
-      .select('-password -verificationToken -googleId') // Exclude sensitive fields
+      .select('-password -verificationToken -googleId') 
       .populate('role', 'name permissions')
       .skip(skip)
       .limit(limit)
@@ -89,7 +82,6 @@ export const createUser = async (req: Request, res: Response) => {
   const { name, email, status, picture, role: roleId } = req.body;
 
   try {
-    // 2. Validation
     if (!name || !email) {
       return res.status(400).json({ success: false, message: 'Name and email are required' });
     }
@@ -116,7 +108,6 @@ export const createUser = async (req: Request, res: Response) => {
       permissions = existingRole.permissions;
     }
 
-    // 5. Create new user
     const newUser = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
@@ -137,13 +128,7 @@ export const createUser = async (req: Request, res: Response) => {
       tempPassword
     );
 
-    // if (emailSent) {
-    //   console.log(`Temp password for ${email} sent to email.`);
-    // } else {
-    //   console.error(`User created but failed to send email to ${email}. Password was: ${tempPassword}`);
-    // }
 
-    // 7. Return populated user data
     const populatedUser = await User.findById(newUser._id)
       .select('-password -verificationToken -googleId')
       .populate('role', 'name permissions')
@@ -198,7 +183,6 @@ export const updateUser = async (req: Request, res: Response) => {
   const { name, email, status, picture, role: roleId } = req.body;
 
   try {
-    // Find user
     const user = await User.findById(req.params.id);
     
     if (!user) {
@@ -208,7 +192,6 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Validate and update name
     if (name !== undefined) {
       if (!name.trim()) {
         return res.status(400).json({ 
@@ -219,7 +202,6 @@ export const updateUser = async (req: Request, res: Response) => {
       user.name = name.trim();
     }
 
-    // Validate and update email
     if (email !== undefined) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
@@ -229,7 +211,6 @@ export const updateUser = async (req: Request, res: Response) => {
         });
       }
 
-      // Check duplicate email (excluding current user)
       const emailExists = await User.findOne({
         email: email.toLowerCase().trim(),
         _id: { $ne: req.params.id }
@@ -245,7 +226,6 @@ export const updateUser = async (req: Request, res: Response) => {
       user.email = email.toLowerCase().trim();
     }
 
-    // Update status
     if (status !== undefined) {
       if (status !== 'available' && status !== 'not available') {
         return res.status(400).json({ 
@@ -256,19 +236,15 @@ export const updateUser = async (req: Request, res: Response) => {
       user.status = status;
     }
 
-    // Update picture
     if (picture !== undefined) {
       user.picture = picture;
     }
 
-    // Handle role update
     if (roleId !== undefined) {
       if (roleId === null || roleId === '') {
-        // Remove role assignment
         user.role = undefined;
         user.permissions = [];
       } else {
-        // Assign new role
         const roleDoc = await Role.findById(roleId);
         
         if (!roleDoc) {
@@ -283,10 +259,8 @@ export const updateUser = async (req: Request, res: Response) => {
       }
     }
 
-    // Save user (triggers pre-save middleware)
     await user.save();
 
-    // Return populated user
     const updatedUser = await User.findById(user._id)
       .select('-password -verificationToken')
       .populate('role', 'name permissions')
