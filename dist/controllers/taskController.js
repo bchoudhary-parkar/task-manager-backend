@@ -11,7 +11,7 @@ export const getTasks = async (req, res) => {
             ];
         }
         if (assignedTo) {
-            query.assignedTo = { $regex: assignedTo, $options: 'i' };
+            query.assignedTo = assignedTo;
         }
         if (status) {
             query.status = status;
@@ -41,7 +41,8 @@ export const getTasks = async (req, res) => {
 export const getTaskById = async (req, res) => {
     try {
         const task = await Task.findById(req.params.id)
-            .populate('assignedTo', 'name email picture status');
+            .populate('assignedTo', 'name email picture status')
+            .populate('createdBy', 'name email picture status');
         if (!task) {
             res.status(404).json({
                 success: false,
@@ -63,7 +64,6 @@ export const getTaskById = async (req, res) => {
         });
     }
 };
-// Create new task
 export const createTask = async (req, res) => {
     try {
         if (!req.body.title) {
@@ -90,6 +90,7 @@ export const createTask = async (req, res) => {
         });
         const populatedTask = await Task.findById(task._id)
             .populate('assignedTo', 'name email picture status')
+            .populate('createdBy', 'name email picture status')
             .lean();
         res.status(201).json({
             success: true,
@@ -105,7 +106,6 @@ export const createTask = async (req, res) => {
         });
     }
 };
-// Update task
 export const updateTask = async (req, res) => {
     try {
         if (req.body.assignedTo && req.body.assignedTo !== null) {
@@ -121,7 +121,8 @@ export const updateTask = async (req, res) => {
         const task = await Task.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
             runValidators: true,
-        }).populate('assignedTo', 'name email picture status');
+        }).populate('assignedTo', 'name email picture status')
+            .populate('createdBy', 'name email picture status');
         if (!task) {
             res.status(404).json({
                 success: false,
@@ -144,7 +145,6 @@ export const updateTask = async (req, res) => {
         });
     }
 };
-// Delete task
 export const deleteTask = async (req, res) => {
     try {
         const task = await Task.findByIdAndDelete(req.params.id);
@@ -170,7 +170,6 @@ export const deleteTask = async (req, res) => {
         });
     }
 };
-// Bulk update task status (for drag and drop)
 export const bulkUpdateStatus = async (req, res) => {
     try {
         const { updates } = req.body;
@@ -198,27 +197,22 @@ export const bulkUpdateStatus = async (req, res) => {
         });
     }
 };
-// Get users for task assignment 
 export const getUsersForTaskAssignment = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || '';
         const skip = (page - 1) * limit;
-        // Build query - only show available users
         const query = {
-            status: 'available'
+            status: 'available',
         };
-        // Add search functionality
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } }
+                { email: { $regex: search, $options: 'i' } },
             ];
         }
-        // Get total count
         const totalUsers = await User.countDocuments(query);
-        // Get users with pagination
         const users = await User.find(query)
             .select('name email picture status role')
             .populate('role', 'name')
@@ -235,8 +229,8 @@ export const getUsersForTaskAssignment = async (req, res) => {
                 totalItems: totalUsers,
                 itemsPerPage: limit,
                 hasNextPage: page < Math.ceil(totalUsers / limit),
-                hasPrevPage: page > 1
-            }
+                hasPrevPage: page > 1,
+            },
         });
     }
     catch (error) {

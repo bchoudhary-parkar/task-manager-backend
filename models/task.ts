@@ -1,3 +1,4 @@
+// src/models/Task.ts
 import mongoose, { Document, Schema, Types } from 'mongoose';
  
 export interface ISubTask {
@@ -11,7 +12,7 @@ export interface ITask extends Document {
   description: string;
   status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
-  assignedTo?: Types.ObjectId |  string; 
+  assignedTo?: Types.ObjectId | string;
   createdBy: string;
   dueDate?: Date;
   tags: string[];
@@ -20,21 +21,24 @@ export interface ITask extends Document {
   updatedAt: Date;
 }
  
-const SubTaskSchema = new Schema({
-  id: {
-    type: String,
-    required: true,
+const SubTaskSchema = new Schema(
+  {
+    id: {
+      type: String,
+      required: true,
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    completed: {
+      type: Boolean,
+      default: false,
+    },
   },
-  title: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  completed: {
-    type: Boolean,
-    default: false,
-  },
-}, { _id: false });
+  { _id: false }
+);
  
 const TaskSchema: Schema = new Schema(
   {
@@ -61,18 +65,14 @@ const TaskSchema: Schema = new Schema(
       required: [true, 'priority is required'],
     },
     assignedTo: {
-      type: Schema.Types.ObjectId,  
-      ref: 'user',  
-      // required: [true, 'Assigned user is required'],
-  
+      type: Schema.Types.ObjectId,
+      ref: 'user',
     },
-    createdBy: { 
-      type: Schema.Types.ObjectId, 
-      ref: 'user', 
-      required: true 
-
-      },
-
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'user',
+      required: true,
+    },
     dueDate: {
       type: Date,
       required: [true, 'DueDate is required'],
@@ -91,10 +91,11 @@ const TaskSchema: Schema = new Schema(
   }
 );
  
-// Indexes for better search performance
 TaskSchema.index({ title: 'text', description: 'text' });
-TaskSchema.index({ assignedTo: 1 });
-TaskSchema.index({ status: 1 });
+TaskSchema.index({ assignedTo: 1, status: 1 });
+TaskSchema.index({ status: 1, createdAt: -1 });
+TaskSchema.index({ priority: 1 });
 TaskSchema.index({ createdAt: -1 });
  
 export default mongoose.model<ITask>('Task', TaskSchema);
+ 

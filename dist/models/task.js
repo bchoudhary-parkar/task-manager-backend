@@ -1,3 +1,4 @@
+// src/models/Task.ts
 import mongoose, { Schema } from 'mongoose';
 const SubTaskSchema = new Schema({
     id: {
@@ -40,12 +41,11 @@ const TaskSchema = new Schema({
     assignedTo: {
         type: Schema.Types.ObjectId,
         ref: 'user',
-        // required: [true, 'Assigned user is required'],
     },
     createdBy: {
         type: Schema.Types.ObjectId,
         ref: 'user',
-        required: true
+        required: true,
     },
     dueDate: {
         type: Date,
@@ -62,10 +62,10 @@ const TaskSchema = new Schema({
 }, {
     timestamps: true,
 });
-// Indexes for better search performance
 TaskSchema.index({ title: 'text', description: 'text' });
-TaskSchema.index({ assignedTo: 1 });
-TaskSchema.index({ status: 1 });
+TaskSchema.index({ assignedTo: 1, status: 1 });
+TaskSchema.index({ status: 1, createdAt: -1 });
+TaskSchema.index({ priority: 1 });
 TaskSchema.index({ createdAt: -1 });
 export default mongoose.model('Task', TaskSchema);
 //# sourceMappingURL=task.js.map

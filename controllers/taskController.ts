@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import Task, { ITask } from '../models/task.js';
 import User from '../models/User.js';
 import { QueryFilter, Document } from 'mongoose';
-
+ 
 interface ITaskDocument extends ITask, Document {}
  
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
@@ -15,22 +15,22 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
     };
  
     let query: QueryFilter<ITaskDocument> = {};
-
+ 
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
       ];
     }
-
+ 
     if (assignedTo) {
-      query.assignedTo = { $regex: assignedTo, $options: 'i' };
+      query.assignedTo = assignedTo;
     }
-   
+ 
     if (status) {
       query.status = status;
     }
-
+ 
     if (priority) {
       query.priority = priority;
     }
@@ -45,7 +45,7 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
       count: tasks.length,
       data: tasks,
     });
-  } catch (error: any)  {
+  } catch (error: any) {
     console.error('Error fetching tasks:', error);
     res.status(500).json({
       success: false,
@@ -55,11 +55,12 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
   }
 };
  
-
+ 
 export const getTaskById = async (req: Request, res: Response): Promise<void> => {
   try {
     const task = await Task.findById(req.params.id)
-      .populate('assignedTo', 'name email picture status');
+      .populate('assignedTo', 'name email picture status')
+      .populate('createdBy', 'name email picture status');
  
     if (!task) {
       res.status(404).json({
@@ -83,16 +84,13 @@ export const getTaskById = async (req: Request, res: Response): Promise<void> =>
   }
 };
  
-// Create new task
 export const createTask = async (req: Request, res: Response): Promise<void> => {
   try {
-
     if (!req.body.title) {
       res.status(400).json({ success: false, message: 'Title is required' });
       return;
     }
-
-
+ 
     if (req.body.assignedTo) {
       const userExists = await User.findById(req.body.assignedTo);
       if (!userExists) {
@@ -100,25 +98,24 @@ export const createTask = async (req: Request, res: Response): Promise<void> => 
         return;
       }
     }
-
-
+ 
     const task = await Task.create({
       title: req.body.title,
       description: req.body.description,
       status: req.body.status || 'TODO',
       priority: req.body.priority || 'MEDIUM',
-      assignedTo: req.body.assignedTo || null, 
+      assignedTo: req.body.assignedTo || null,
       createdBy: req.user?.id || 'Unknown',
       dueDate: req.body.dueDate,
       tags: req.body.tags || [],
       subtasks: req.body.subtasks || [],
     });
-
-
+ 
     const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'name email picture status')
+      .populate('createdBy', 'name email picture status')
       .lean();
-
+ 
     res.status(201).json({
       success: true,
       message: 'Task created successfully',
@@ -133,10 +130,8 @@ export const createTask = async (req: Request, res: Response): Promise<void> => 
   }
 };
  
-// Update task
 export const updateTask = async (req: Request, res: Response): Promise<void> => {
   try {
-    
     if (req.body.assignedTo && req.body.assignedTo !== null) {
       const userExists = await User.findById(req.body.assignedTo);
       if (!userExists) {
@@ -155,7 +150,8 @@ export const updateTask = async (req: Request, res: Response): Promise<void> => 
         new: true,
         runValidators: true,
       }
-    ).populate('assignedTo', 'name email picture status');
+    ).populate('assignedTo', 'name email picture status')
+    .populate('createdBy', 'name email picture status');
  
     if (!task) {
       res.status(404).json({
@@ -180,7 +176,6 @@ export const updateTask = async (req: Request, res: Response): Promise<void> => 
   }
 };
  
-// Delete task
 export const deleteTask = async (req: Request, res: Response): Promise<void> => {
   try {
     const task = await Task.findByIdAndDelete(req.params.id);
@@ -208,10 +203,9 @@ export const deleteTask = async (req: Request, res: Response): Promise<void> => 
   }
 };
  
-// Bulk update task status (for drag and drop)
 export const bulkUpdateStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { updates } = req.body; 
+    const { updates } = req.body;
  
     if (!Array.isArray(updates) || updates.length === 0) {
       res.status(400).json({
@@ -246,32 +240,27 @@ export const bulkUpdateStatus = async (req: Request, res: Response): Promise<voi
   }
 };
  
-// Get users for task assignment 
 export const getUsersForTaskAssignment = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    const search = req.query.search as string || '';
-   
+    const search = (req.query.search as string) || '';
+ 
     const skip = (page - 1) * limit;
-   
-    // Build query - only show available users
+ 
     const query: any = {
-      status: 'available'
+      status: 'available',
     };
-   
-    // Add search functionality
+ 
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { email: { $regex: search, $options: 'i' } },
       ];
     }
  
-    // Get total count
     const totalUsers = await User.countDocuments(query);
-   
-    // Get users with pagination
+ 
     const users = await User.find(query)
       .select('name email picture status role')
       .populate('role', 'name')
@@ -289,8 +278,8 @@ export const getUsersForTaskAssignment = async (req: Request, res: Response): Pr
         totalItems: totalUsers,
         itemsPerPage: limit,
         hasNextPage: page < Math.ceil(totalUsers / limit),
-        hasPrevPage: page > 1
-      }
+        hasPrevPage: page > 1,
+      },
     });
   } catch (error: any) {
     console.error('Error fetching users for task assignment:', error);
@@ -301,3 +290,4 @@ export const getUsersForTaskAssignment = async (req: Request, res: Response): Pr
     });
   }
 };
+ 
