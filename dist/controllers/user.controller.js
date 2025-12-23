@@ -223,7 +223,74 @@ export const resendOTP = async (req, res) => {
         });
     }
 };
-// Login User
+// Login User (unchanged logic — you already handle unverified here)
+// export const loginUser = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const { email, password } = req.body as { email?: string; password?: string };
+//     if (!email || !password) {
+//       res.status(400).json({ success: false, message: "Email and password are required." });
+//       return;
+//     }
+//     const user = await User.findOne({ email: email.toLowerCase() });
+//     if (user?.status === "not available") {
+//       res.status(403).json({
+//         success: false,
+//         message: "Access Denied: Your account is currently suspended or inactive."
+//       });
+//       return;
+//     }
+//     if (!user) {
+//       res.status(401).json({ success: false, message: "Invalid email or password." });
+//       return;
+//     }
+//     if (user.isGoogleAuth) {
+//       res.status(401).json({
+//         success: false,
+//         message: "Please use 'Continue with Google' to login."
+//       });
+//       return;
+//     }
+//     if (!user.password) {
+//       res.status(401).json({ success: false, message: "Invalid email or password." });
+//       return;
+//     }
+//     const match = await bcrypt.compare(password, user.password);
+//     if (!match) {
+//       res.status(401).json({ success: false, message: "Invalid email or password." });
+//       return;
+//     }
+//     // Check email verification
+//     if (!user.emailVerified) {
+//       res.status(403).json({
+//         success: false,
+//         message: "Please verify your email first.",
+//         requiresVerification: true,
+//         email: user.email
+//       });
+//       return;
+//     }
+//     const token = createToken(user._id.toString());
+//     res.json({
+//       success: true,
+//       token,
+//       user: {
+//         id: user._id.toString(),
+//         name: user.name,
+//         email: user.email,
+//         picture: user.picture || '',
+//         emailVerified: user.emailVerified
+//       },
+//     });
+//   } catch (err: any) {
+//     console.error("Login error:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error during login.",
+//       error: process.env.NODE_ENV === 'development' ? err.message : undefined
+//     });
+//   }
+// };
+// Login User — PATCHED to auto-send OTP when unverified (admin-created or not)
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -259,16 +326,38 @@ export const loginUser = async (req, res) => {
             res.status(401).json({ success: false, message: "Invalid email or password." });
             return;
         }
-        // Check email verification
+        // ✅ If email not verified, AUTO-GENERATE & SEND OTP here
         if (!user.emailVerified) {
+            const verificationToken = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+            const verificationTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+            user.verificationToken = verificationToken;
+            user.verificationTokenExpiresAt = verificationTokenExpiresAt;
+            user.otpAttempts = 0; // reset failed attempts on new code
+            await user.save();
+            // Send OTP immediately
+            const emailSent = await sendVerificationEmail(user.email, verificationToken);
+            // If sending fails, still tell them to try resend
+            if (!emailSent) {
+                res.status(403).json({
+                    success: false,
+                    message: "Please verify your email first. We tried sending a code but it failed. Use 'Resend OTP'.",
+                    requiresVerification: true,
+                    email: user.email,
+                    otpSent: false
+                });
+                return;
+            }
+            // Respond with the same shape the frontend expects, but OTP is already sent
             res.status(403).json({
                 success: false,
-                message: "Please verify your email first.",
+                message: "Please verify your email first. We've sent a verification code to your email.",
                 requiresVerification: true,
-                email: user.email
+                email: user.email,
+                otpSent: true
             });
             return;
         }
+        // Verified path → issue token
         const token = createToken(user._id.toString());
         res.json({
             success: true,
@@ -291,7 +380,7 @@ export const loginUser = async (req, res) => {
         });
     }
 };
-// Google Auth
+// Google Auth (unchanged)
 export const googleAuth = async (req, res) => {
     try {
         const { code } = req.body;
@@ -376,7 +465,7 @@ export const googleAuth = async (req, res) => {
         });
     }
 };
-// Get Current User
+// Get Current User  ✅ includes `status`
 export const getCurrentUser = async (req, res) => {
     try {
         const userId = req.user?.id;
@@ -384,7 +473,8 @@ export const getCurrentUser = async (req, res) => {
             res.status(401).json({ success: false, message: "Not authorized" });
             return;
         }
-        const user = await User.findById(userId).select("name email picture isGoogleAuth emailVerified permissions");
+        const user = await User.findById(userId)
+            .select("name email picture isGoogleAuth emailVerified permissions status");
         if (!user) {
             res.status(404).json({ success: false, message: "User not found." });
             return;
@@ -398,7 +488,8 @@ export const getCurrentUser = async (req, res) => {
                 picture: user.picture || '',
                 isGoogleAuth: user.isGoogleAuth,
                 emailVerified: user.emailVerified,
-                Permissions: user.permissions
+                Permissions: user.permissions,
+                status: user.status, // 👈 returned to client
             }
         });
     }

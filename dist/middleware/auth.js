@@ -12,9 +12,20 @@ const authMiddleware = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     try {
         const payload = jwt.verify(token, JWT_SECRET);
-        const user = await User.findById(payload.id).select('-password').populate('role', 'name permissions');
+        // Keep your original select; status is included by default.
+        const user = await User.findById(payload.id)
+            .select('-password') // exclude password
+            .populate('role', 'name permissions');
         if (!user) {
             res.status(401).json({ success: false, message: 'User not found' });
+            return;
+        }
+        // 🚫 Block inactive users immediately
+        if (user.status === 'not available') {
+            res.status(403).json({
+                success: false,
+                message: 'Access Denied: Your account is currently suspended or inactive.', // used by client
+            });
             return;
         }
         req.user = {
