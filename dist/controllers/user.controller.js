@@ -223,74 +223,6 @@ export const resendOTP = async (req, res) => {
         });
     }
 };
-// Login User (unchanged logic — you already handle unverified here)
-// export const loginUser = async (req: Request, res: Response): Promise<void> => {
-//   try {
-//     const { email, password } = req.body as { email?: string; password?: string };
-//     if (!email || !password) {
-//       res.status(400).json({ success: false, message: "Email and password are required." });
-//       return;
-//     }
-//     const user = await User.findOne({ email: email.toLowerCase() });
-//     if (user?.status === "not available") {
-//       res.status(403).json({
-//         success: false,
-//         message: "Access Denied: Your account is currently suspended or inactive."
-//       });
-//       return;
-//     }
-//     if (!user) {
-//       res.status(401).json({ success: false, message: "Invalid email or password." });
-//       return;
-//     }
-//     if (user.isGoogleAuth) {
-//       res.status(401).json({
-//         success: false,
-//         message: "Please use 'Continue with Google' to login."
-//       });
-//       return;
-//     }
-//     if (!user.password) {
-//       res.status(401).json({ success: false, message: "Invalid email or password." });
-//       return;
-//     }
-//     const match = await bcrypt.compare(password, user.password);
-//     if (!match) {
-//       res.status(401).json({ success: false, message: "Invalid email or password." });
-//       return;
-//     }
-//     // Check email verification
-//     if (!user.emailVerified) {
-//       res.status(403).json({
-//         success: false,
-//         message: "Please verify your email first.",
-//         requiresVerification: true,
-//         email: user.email
-//       });
-//       return;
-//     }
-//     const token = createToken(user._id.toString());
-//     res.json({
-//       success: true,
-//       token,
-//       user: {
-//         id: user._id.toString(),
-//         name: user.name,
-//         email: user.email,
-//         picture: user.picture || '',
-//         emailVerified: user.emailVerified
-//       },
-//     });
-//   } catch (err: any) {
-//     console.error("Login error:", err);
-//     res.status(500).json({
-//       success: false,
-//       message: "Server error during login.",
-//       error: process.env.NODE_ENV === 'development' ? err.message : undefined
-//     });
-//   }
-// };
-// Login User — PATCHED to auto-send OTP when unverified (admin-created or not)
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -489,7 +421,7 @@ export const getCurrentUser = async (req, res) => {
                 isGoogleAuth: user.isGoogleAuth,
                 emailVerified: user.emailVerified,
                 Permissions: user.permissions,
-                status: user.status, // 👈 returned to client
+                status: user.status,
             }
         });
     }
